@@ -1,13 +1,49 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import styled from 'styled-components'
+import useSWR from 'swr'
 import { NonStopWatch } from './components/NonStopWatch'
 import type { StyledFC } from './types'
 
+type Error = string
+
+type PaidEntry = {
+  name: string,
+  date: string,
+  amountUsd: number,
+  amount: number
+}
+type CoinStats = {
+  prices: Record<string, number>
+  usdPrice: number
+  totalHave: number
+  totalSpent: number
+  paids: Record<string, PaidEntry[]>
+}
+
+const apiFetcher = (url: string) => {
+  return fetch(`http://localhost:3000${url}`)
+    .then(res => res.json())
+}
+
+const useApiGet = <T extends unknown>(url: string) => {
+  const { data, error } = useSWR<T, Error>(url, apiFetcher)
+
+  return {
+    isLoading: !(data || error),
+    data,
+    error
+  }
+}
+
 const PortfolioSummary: StyledFC = () => {
-  return (
+  const { isLoading, data } = useApiGet<CoinStats>('/api/coins')
+
+  return isLoading ? (
     <div>
-      {'PortfolioSummary'}
+      {'...!'}
     </div>
+  ) : (
+    <pre>{JSON.stringify(data, null, 2)}</pre>
   )
 }
 
@@ -16,12 +52,14 @@ const App: StyledFC = (props) => {
 
   return (
     <Router>
-      <div className={className} data-testid="App">
-        <Routes>
-          <Route path="/" element={<PortfolioSummary />} />
-          <Route path="*" element={<NonStopWatch />} />
-        </Routes>
-      </div>
+      <Routes>
+        <Route path="/" element={<PortfolioSummary />} />
+        <Route path="*" element={(
+          <div className={className} data-testid="App">
+            <NonStopWatch />
+          </div>
+        )} />
+      </Routes>
     </Router>
   )
 }
